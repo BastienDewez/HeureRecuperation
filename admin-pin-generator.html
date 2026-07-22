@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Générateur de codes — outil admin</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  #app{ max-width: 640px; }
+  textarea{
+    width:100%; min-height: 320px; font-family: var(--font-mono); font-size: 13px;
+    padding: 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper-raised);
+  }
+  .row{ display:flex; gap:10px; margin-bottom: 12px; }
+  .row input{ flex:1; }
+  table.list{ width:100%; border-collapse:collapse; margin-top:16px; font-size:13px; }
+  table.list td, table.list th{ border-bottom:1px solid var(--line); padding:6px 8px; text-align:left; font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="card card-punch">
+    <div class="punch-strip"></div>
+    <div class="card-body">
+      <p class="eyebrow">Outil réservé à l'administrateur</p>
+      <h1>Générateur de codes personnels</h1>
+      <p class="lede">
+        Cette page ne fait rien d'autre que calculer, dans votre navigateur, le hachage SHA-256
+        d'un code personnel. Elle ne l'envoie nulle part. Ajoutez chaque ligne générée dans
+        <code>data/agents.json</code>, puis commitez le fichier.<br><br>
+        <strong>Rappel :</strong> le dépôt est public — n'importe qui peut lire <code>agents.json</code>.
+        Le hachage évite juste que le code apparaisse en clair ; ce n'est pas une protection contre
+        une personne motivée à le deviner. Choisissez des codes à 6 chiffres plutôt que 4 si possible,
+        et ne réutilisez pas un mot de passe important.
+      </p>
+
+      <div class="row">
+        <input type="text" id="name" placeholder="Nom exact tel qu'il apparaît dans le fichier Excel">
+        <input type="text" id="pin" placeholder="Code personnel (ex: 483920)">
+      </div>
+      <button class="btn-primary" id="add-btn" type="button" style="margin-bottom:20px;">Ajouter à la liste</button>
+
+      <h2 style="font-size:16px;">JSON à coller dans data/agents.json</h2>
+      <textarea id="output" readonly>{}</textarea>
+
+      <table class="list" id="preview"><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+  const entries = {};
+
+  async function sha256(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function render() {
+    document.getElementById('output').textContent = JSON.stringify(entries, null, 2);
+    const tbody = document.querySelector('#preview tbody');
+    tbody.innerHTML = '';
+    Object.entries(entries).forEach(([name, hash]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${name}</td><td>${hash.slice(0,12)}…</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById('add-btn').addEventListener('click', async () => {
+    const name = document.getElementById('name').value.trim();
+    const pin = document.getElementById('pin').value.trim();
+    if (!name || !pin) return;
+    entries[name] = await sha256(pin);
+    document.getElementById('pin').value = '';
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>

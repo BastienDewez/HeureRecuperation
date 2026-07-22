@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solde d'heures — Accès agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ===== ÉCRAN DE CONNEXION ===== -->
+  <section id="screen-login" class="screen">
+    <div class="card card-punch">
+      <div class="punch-strip" aria-hidden="true"></div>
+      <div class="card-body">
+        <p class="eyebrow">Suivi du temps</p>
+        <h1>Mon solde d'heures</h1>
+        <p class="lede">Sélectionnez votre nom et entrez votre code personnel pour consulter votre solde du mois et des mois précédents.</p>
+
+        <form id="login-form" autocomplete="off">
+          <label class="field">
+            <span>Agent</span>
+            <select id="agent-select" required>
+              <option value="" disabled selected>Choisir un nom…</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Code personnel</span>
+            <input type="password" id="pin-input" inputmode="numeric" placeholder="••••" required>
+          </label>
+
+          <button type="submit" class="btn-primary">Voir mon solde</button>
+          <p id="login-error" class="error" role="alert" hidden>Nom ou code incorrect. Réessayez.</p>
+        </form>
+        <p id="load-status" class="status">Chargement des données…</p>
+      </div>
+    </div>
+    <p class="footnote">Application interne — les données affichées proviennent du fichier Excel mis à jour chaque mois par le service administratif.</p>
+  </section>
+
+  <!-- ===== TABLEAU DE BORD ===== -->
+  <section id="screen-dashboard" class="screen" hidden>
+    <header class="dash-header">
+      <div>
+        <p class="eyebrow">Solde d'heures</p>
+        <h1 id="dash-name">—</h1>
+      </div>
+      <div class="dash-header-actions">
+        <label class="year-picker" id="year-picker" hidden>
+          <span>Année</span>
+          <select id="year-select"></select>
+        </label>
+        <button id="logout-btn" class="btn-ghost">Se déconnecter</button>
+      </div>
+    </header>
+
+    <div class="hero-card" id="hero-card">
+      <p class="hero-label" id="hero-label">Solde au —</p>
+      <p class="hero-value" id="hero-value">—</p>
+      <p class="hero-sub" id="hero-sub"></p>
+    </div>
+
+    <div class="report-chip" id="report-chip" hidden>
+      <span class="chip-dot" aria-hidden="true"></span>
+      <span>Solde reporté au <strong id="report-date">—</strong> : <strong id="report-value">—</strong></span>
+    </div>
+
+    <h2 class="section-title">Historique mensuel</h2>
+    <div class="punch-row" id="punch-row"></div>
+
+    <table class="ledger" id="ledger-table">
+      <thead>
+        <tr><th>Mois</th><th>Solde</th><th>Variation vs mois précédent</th></tr>
+      </thead>
+      <tbody id="ledger-body"></tbody>
+    </table>
+
+    <p id="dash-empty" class="status" hidden>Aucune donnée disponible pour cet agent.</p>
+  </section>
+
+  <section id="screen-fatal" class="screen" hidden>
+    <div class="card card-punch">
+      <div class="punch-strip" aria-hidden="true"></div>
+      <div class="card-body">
+        <p class="eyebrow">Suivi du temps</p>
+        <h1>Données indisponibles</h1>
+        <p class="lede" id="fatal-message">Impossible de charger le fichier de données. Vérifiez que <code>data/HeureAdmin.xlsx</code> est bien présent dans le dépôt.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
