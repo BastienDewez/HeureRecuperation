@@ -96,7 +96,7 @@ async function loadWorkbook() {
   years.sort((a, b) => b.localeCompare(a)); // plus récent d'abord
   return { data, years };
 
-  const res = await fetch('data/HeureAudio.xlsx', { cache: 'no-store' });
+  res = await fetch('data/HeureAudio.xlsx', { cache: 'no-store' });
   if (!res.ok) throw new Error("Impossible de charger data/HeureAdmin.xlsx (code " + res.status + ").");
   const buf = await res.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array', raw: true });
@@ -140,7 +140,7 @@ async function loadWorkbook() {
   years.sort((a, b) => b.localeCompare(a)); // plus récent d'abord
   return { data, years };
 
-const res = await fetch('data/HeureLoisir.xlsx', { cache: 'no-store' });
+  res = await fetch('data/HeureLoisir.xlsx', { cache: 'no-store' });
   if (!res.ok) throw new Error("Impossible de charger data/HeureAdmin.xlsx (code " + res.status + ").");
   const buf = await res.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array', raw: true });
