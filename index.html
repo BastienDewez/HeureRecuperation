@@ -32,7 +32,7 @@
 
           <label class="field">
             <span>Code personnel</span>
-            <input type="password" id="pin-input" inputmode="numeric" placeholder="••••" required>
+            <input type="password" id="pin-input" placeholder="••••" required>
           </label>
 
           <button type="submit" class="btn-primary">Voir mon solde</button>
@@ -82,6 +82,17 @@
     </table>
 
     <p id="dash-empty" class="status" hidden>Aucune donnée disponible pour cet agent.</p>
+  </section>
+
+  <section id="screen-fatal" class="screen" hidden>
+    <div class="card card-punch">
+      <div class="punch-strip" aria-hidden="true"></div>
+      <div class="card-body">
+        <p class="eyebrow">Suivi du temps</p>
+        <h1>Données indisponibles</h1>
+        <p class="lede" id="fatal-message">Impossible de charger le fichier de données. Vérifiez que <code>data/HeureAdmin.xlsx</code> est bien présent dans le dépôt.</p>
+      </div>
+    </div>
   </section>
 
 </div>
