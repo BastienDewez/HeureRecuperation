@@ -37,7 +37,6 @@ async function init() {
     el('load-status').hidden = true;
   } catch (err) {
     console.error(err);
-    showFatal(err.message || String(err));
   }
 }
 
@@ -292,11 +291,6 @@ function setScreen(id) {
   ['screen-login', 'screen-dashboard', 'screen-fatal'].forEach((s) => {
     el(s).hidden = s !== id;
   });
-}
-
-function showFatal(message) {
-  el('fatal-message').textContent = message;
-  setScreen('screen-fatal');
 }
 
 /* Reprise de session dans l'onglet en cours */
