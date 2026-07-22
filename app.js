@@ -205,7 +205,7 @@ function renderYear(agentName, year) {
   // --- Carte principale : dernier solde connu ---
   if (lastMonth) {
     const hours = months[lastMonth] * 24;
-    el('hero-label').textContent = `Solde au 30/${lastMonth} ${year}`;
+    el('hero-label').textContent = `Solde au 30 ${lastMonth.toLowerCase()} ${year}`;
     el('hero-value').textContent = formatSignedDuration(hours);
     el('hero-value').className = 'hero-value' + (hours < 0 ? ' negative' : '');
     const idx = withData.length - 2 >= 0 ? withData[withData.length - 2] : null;
@@ -226,7 +226,7 @@ function renderYear(agentName, year) {
   const reportChip = el('report-chip');
   if (record.report && record.report.value !== null) {
     reportChip.hidden = false;
-    el('report-date').textContent = record.report.label;
+    el('report-date').textContent = record.report.label.replace(/^solde\s*/i, '').trim();
     el('report-value').textContent = formatSignedDuration(record.report.value * 24);
   } else {
     reportChip.hidden = true;
