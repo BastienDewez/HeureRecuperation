@@ -98,32 +98,32 @@ async function loadWorkbook() {
 
   res = await fetch('data/HeureAudio.xlsx', { cache: 'no-store' });
   if (!res.ok) throw new Error("Impossible de charger data/HeureAdmin.xlsx (code " + res.status + ").");
-  const buf = await res.arrayBuffer();
-  const wb = XLSX.read(buf, { type: 'array', raw: true });
+  buf = await res.arrayBuffer();
+  wb = XLSX.read(buf, { type: 'array', raw: true });
 
-  const data = {};
-  const years = [];
+  data = {};
+  years = [];
 
   wb.SheetNames.forEach((sheetName) => {
-    const sheet = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+    sheet = wb.Sheets[sheetName];
+    rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
     if (!rows.length) return;
 
-    const header = rows[0];
-    const reportLabel = header[1] || 'Solde initial';
-    const monthCols = header.slice(2); // noms de mois tels qu'écrits dans le fichier
+    header = rows[0];
+    reportLabel = header[1] || 'Solde initial';
+    monthCols = header.slice(2); // noms de mois tels qu'écrits dans le fichier
 
-    const yearData = {};
+    yearData = {};
     for (let r = 1; r < rows.length; r++) {
-      const row = rows[r];
-      const agentName = row[0];
+      row = rows[r];
+      agentName = row[0];
       if (!agentName || typeof agentName !== 'string') continue;
 
-      const reportRaw = row[1];
-      const months = {};
+      reportRaw = row[1];
+      months = {};
       monthCols.forEach((monthName, idx) => {
         if (!monthName) return;
-        const raw = row[2 + idx];
+        raw = row[2 + idx];
         months[monthName] = numericOrNull(raw);
       });
 
@@ -142,32 +142,32 @@ async function loadWorkbook() {
 
   res = await fetch('data/HeureLoisir.xlsx', { cache: 'no-store' });
   if (!res.ok) throw new Error("Impossible de charger data/HeureAdmin.xlsx (code " + res.status + ").");
-  const buf = await res.arrayBuffer();
-  const wb = XLSX.read(buf, { type: 'array', raw: true });
+  buf = await res.arrayBuffer();
+  wb = XLSX.read(buf, { type: 'array', raw: true });
 
-  const data = {};
-  const years = [];
+  data = {};
+  years = [];
 
   wb.SheetNames.forEach((sheetName) => {
-    const sheet = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+    sheet = wb.Sheets[sheetName];
+    rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
     if (!rows.length) return;
 
-    const header = rows[0];
-    const reportLabel = header[1] || 'Solde initial';
-    const monthCols = header.slice(2); // noms de mois tels qu'écrits dans le fichier
+    header = rows[0];
+    reportLabel = header[1] || 'Solde initial';
+    monthCols = header.slice(2); // noms de mois tels qu'écrits dans le fichier
 
-    const yearData = {};
+    yearData = {};
     for (let r = 1; r < rows.length; r++) {
-      const row = rows[r];
-      const agentName = row[0];
+      row = rows[r];
+      agentName = row[0];
       if (!agentName || typeof agentName !== 'string') continue;
 
-      const reportRaw = row[1];
-      const months = {};
+      reportRaw = row[1];
+      months = {};
       monthCols.forEach((monthName, idx) => {
         if (!monthName) return;
-        const raw = row[2 + idx];
+        raw = row[2 + idx];
         months[monthName] = numericOrNull(raw);
       });
 
