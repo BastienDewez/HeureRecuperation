@@ -95,6 +95,94 @@ async function loadWorkbook() {
 
   years.sort((a, b) => b.localeCompare(a)); // plus récent d'abord
   return { data, years };
+
+  const res = await fetch('data/HeureAudio.xlsx', { cache: 'no-store' });
+  if (!res.ok) throw new Error("Impossible de charger data/HeureAdmin.xlsx (code " + res.status + ").");
+  const buf = await res.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array', raw: true });
+
+  const data = {};
+  const years = [];
+
+  wb.SheetNames.forEach((sheetName) => {
+    const sheet = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+    if (!rows.length) return;
+
+    const header = rows[0];
+    const reportLabel = header[1] || 'Solde initial';
+    const monthCols = header.slice(2); // noms de mois tels qu'écrits dans le fichier
+
+    const yearData = {};
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      const agentName = row[0];
+      if (!agentName || typeof agentName !== 'string') continue;
+
+      const reportRaw = row[1];
+      const months = {};
+      monthCols.forEach((monthName, idx) => {
+        if (!monthName) return;
+        const raw = row[2 + idx];
+        months[monthName] = numericOrNull(raw);
+      });
+
+      yearData[agentName.trim()] = {
+        report: { label: reportLabel, value: numericOrNull(reportRaw) },
+        months,
+      };
+    }
+
+    data[sheetName] = yearData;
+    years.push(sheetName);
+  });
+
+  years.sort((a, b) => b.localeCompare(a)); // plus récent d'abord
+  return { data, years };
+
+const res = await fetch('data/HeureLoisir.xlsx', { cache: 'no-store' });
+  if (!res.ok) throw new Error("Impossible de charger data/HeureAdmin.xlsx (code " + res.status + ").");
+  const buf = await res.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array', raw: true });
+
+  const data = {};
+  const years = [];
+
+  wb.SheetNames.forEach((sheetName) => {
+    const sheet = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+    if (!rows.length) return;
+
+    const header = rows[0];
+    const reportLabel = header[1] || 'Solde initial';
+    const monthCols = header.slice(2); // noms de mois tels qu'écrits dans le fichier
+
+    const yearData = {};
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      const agentName = row[0];
+      if (!agentName || typeof agentName !== 'string') continue;
+
+      const reportRaw = row[1];
+      const months = {};
+      monthCols.forEach((monthName, idx) => {
+        if (!monthName) return;
+        const raw = row[2 + idx];
+        months[monthName] = numericOrNull(raw);
+      });
+
+      yearData[agentName.trim()] = {
+        report: { label: reportLabel, value: numericOrNull(reportRaw) },
+        months,
+      };
+    }
+
+    data[sheetName] = yearData;
+    years.push(sheetName);
+  });
+
+  years.sort((a, b) => b.localeCompare(a)); // plus récent d'abord
+  return { data, years };
 }
 
 function numericOrNull(v) {
