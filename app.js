@@ -9,6 +9,11 @@
 const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
                     'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
+/* Liste des fichiers sources : un par secteur. Chaque agent n'apparaît
+   que dans UN de ces fichiers ; on les fusionne donc tous ensemble et
+   l'application retrouve automatiquement le bon secteur à la connexion. */
+const WORKBOOK_FILES = ['data/HeureAdmin.xlsx', 'data/HeureAudio.xlsx', 'data/HeureLoisir.xlsx'];
+
 const state = {
   agentsCreds: null,   // { "Nom Prénom": "sha256hash" }
   workbookData: null,  // { "2026": { "Nom Prénom": { report: {label, value}, months: {Janvier: value|null, ...} } } }
@@ -51,11 +56,6 @@ async function loadAgentCreds() {
   if (!res.ok) throw new Error("Impossible de charger data/agents.json (code " + res.status + ").");
   return res.json();
 }
-
-/* Liste des fichiers sources : un par secteur. Chaque agent n'apparaît
-   que dans UN de ces fichiers ; on les fusionne donc tous ensemble et
-   l'application retrouve automatiquement le bon secteur à la connexion. */
-const WORKBOOK_FILES = ['data/HeureAdmin.xlsx', 'data/HeureAudio.xlsx', 'data/HeureLoisir.xlsx'];
 
 async function loadWorkbookFile(path) {
   const res = await fetch(path, { cache: 'no-store' });
