@@ -37,6 +37,7 @@ async function init() {
     el('load-status').hidden = true;
   } catch (err) {
     console.error(err);
+    showFatal(err.message || String(err));
   }
 }
 
@@ -204,7 +205,7 @@ function renderYear(agentName, year) {
   // --- Carte principale : dernier solde connu ---
   if (lastMonth) {
     const hours = months[lastMonth] * 24;
-    el('hero-label').textContent = `Solde au 30 ${lastMonth.toLowerCase()} ${year}`;
+    el('hero-label').textContent = `Solde au 30/${lastMonth} ${year}`;
     el('hero-value').textContent = formatSignedDuration(hours);
     el('hero-value').className = 'hero-value' + (hours < 0 ? ' negative' : '');
     const idx = withData.length - 2 >= 0 ? withData[withData.length - 2] : null;
@@ -225,7 +226,7 @@ function renderYear(agentName, year) {
   const reportChip = el('report-chip');
   if (record.report && record.report.value !== null) {
     reportChip.hidden = false;
-    el('report-date').textContent = record.report.label.replace(/^solde\s*/i, '').trim();
+    el('report-date').textContent = record.report.label;
     el('report-value').textContent = formatSignedDuration(record.report.value * 24);
   } else {
     reportChip.hidden = true;
@@ -291,6 +292,11 @@ function setScreen(id) {
   ['screen-login', 'screen-dashboard', 'screen-fatal'].forEach((s) => {
     el(s).hidden = s !== id;
   });
+}
+
+function showFatal(message) {
+  el('fatal-message').textContent = message;
+  setScreen('screen-fatal');
 }
 
 /* Reprise de session dans l'onglet en cours */
