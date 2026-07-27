@@ -170,7 +170,22 @@ function wireLoginForm() {
 function wireLogout() {
   el('logout-btn').addEventListener('click', () => {
     sessionStorage.removeItem('solde-agent');
+
+    // Réinitialise l'état et le formulaire pour qu'aucune info du
+    // précédent agent ne reste affichée ou pré-remplie.
+    state.currentAgent = null;
+    state.currentYear = null;
     el('pin-input').value = '';
+    el('agent-select').value = '';
+    el('dash-name').textContent = '—';
+    el('hero-label').textContent = 'Solde au —';
+    el('hero-value').textContent = '—';
+    el('hero-value').className = 'hero-value';
+    el('hero-sub').textContent = '';
+    el('report-chip').hidden = true;
+    el('punch-row').innerHTML = '';
+    el('ledger-body').innerHTML = '';
+
     setScreen('screen-login');
   });
 }
@@ -322,7 +337,11 @@ function formatSignedDuration(hoursDecimal) {
 
 function setScreen(id) {
   ['screen-login', 'screen-dashboard', 'screen-fatal'].forEach((s) => {
-    el(s).hidden = s !== id;
+    const show = s === id;
+    el(s).hidden = !show;
+    // On force aussi le display en ligne : si le CSS définit .screen{display:...}
+    // sans tenir compte de [hidden], l'attribut seul ne suffit pas à masquer l'écran.
+    el(s).style.display = show ? '' : 'none';
   });
 }
 
