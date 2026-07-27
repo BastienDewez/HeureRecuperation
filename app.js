@@ -1,6 +1,7 @@
 /* =====================================================================
    Solde d'heures — application statique (GitHub Pages)
-   - Lit data/HeureAdmin.xlsx directement dans le navigateur (SheetJS)
+   - Lit data/HeureAdmin.xlsx, data/HeureAudio.xlsx et data/HeureLoisir.xlsx
+     directement dans le navigateur (SheetJS) et fusionne les trois
    - Vérifie le nom + code personnel via data/agents.json (codes hachés)
    - Affiche le solde du mois en cours et l'historique des mois précédents
    ===================================================================== */
@@ -51,9 +52,14 @@ async function loadAgentCreds() {
   return res.json();
 }
 
-async function loadWorkbook() {
-  const res = await fetch('data/HeureAdmin.xlsx', { cache: 'no-store' });
-  if (!res.ok) throw new Error("Impossible de charger data/HeureAdmin.xlsx (code " + res.status + ").");
+/* Liste des fichiers sources : un par secteur. Chaque agent n'apparaît
+   que dans UN de ces fichiers ; on les fusionne donc tous ensemble et
+   l'application retrouve automatiquement le bon secteur à la connexion. */
+const WORKBOOK_FILES = ['data/HeureAdmin.xlsx', 'data/HeureAudio.xlsx', 'data/HeureLoisir.xlsx'];
+
+async function loadWorkbookFile(path) {
+  const res = await fetch(path, { cache: 'no-store' });
+  if (!res.ok) throw new Error("Impossible de charger " + path + " (code " + res.status + ").");
   const buf = await res.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array', raw: true });
 
@@ -93,7 +99,25 @@ async function loadWorkbook() {
     years.push(sheetName);
   });
 
-  years.sort((a, b) => b.localeCompare(a)); // plus récent d'abord
+  return { data, years };
+}
+
+async function loadWorkbook() {
+  const results = await Promise.all(
+    WORKBOOK_FILES.map((path) => loadWorkbookFile(path))
+  );
+
+  const data = {};
+  const yearsSet = new Set();
+
+  results.forEach((result) => {
+    result.years.forEach((year) => {
+      yearsSet.add(year);
+      data[year] = Object.assign(data[year] || {}, result.data[year]);
+    });
+  });
+
+  const years = Array.from(yearsSet).sort((a, b) => b.localeCompare(a)); // plus récent d'abord
   return { data, years };
 }
 
