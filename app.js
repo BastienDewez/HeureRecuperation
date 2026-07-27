@@ -24,6 +24,15 @@ const state = {
 
 const el = (id) => document.getElementById(id);
 
+// Bascule la visibilité d'un élément en forçant aussi le style en ligne :
+// si le CSS du projet définit un display sur cet élément sans tenir compte
+// de [hidden], l'attribut seul ne suffit pas à le masquer réellement.
+function setHidden(id, hide) {
+  const node = typeof id === 'string' ? el(id) : id;
+  node.hidden = hide;
+  node.style.display = hide ? 'none' : '';
+}
+
 init();
 
 async function init() {
@@ -40,7 +49,7 @@ async function init() {
     state.years = workbook.years;
 
     populateAgentSelect(Object.keys(creds).sort((a, b) => a.localeCompare(b, 'fr')));
-    el('load-status').hidden = true;
+    setHidden('load-status', true);
   } catch (err) {
     console.error(err);
     showFatal(err.message || String(err));
@@ -148,7 +157,7 @@ function populateAgentSelect(names) {
 function wireLoginForm() {
   el('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    el('login-error').hidden = true;
+    setHidden('login-error', true);
 
     const name = el('agent-select').value;
     const pin = el('pin-input').value.trim();
@@ -158,7 +167,7 @@ function wireLoginForm() {
     const enteredHash = await sha256(pin);
 
     if (!expectedHash || enteredHash !== expectedHash) {
-      el('login-error').hidden = false;
+      setHidden('login-error', false);
       return;
     }
 
@@ -182,7 +191,7 @@ function wireLogout() {
     el('hero-value').textContent = '—';
     el('hero-value').className = 'hero-value';
     el('hero-sub').textContent = '';
-    el('report-chip').hidden = true;
+    setHidden('report-chip', true);
     el('punch-row').innerHTML = '';
     el('ledger-body').innerHTML = '';
 
@@ -205,18 +214,18 @@ function showDashboard(agentName) {
   const availableYears = state.years.filter((y) => state.workbookData[y][agentName]);
   if (!availableYears.length) {
     el('dash-name').textContent = agentName;
-    el('hero-card').hidden = true;
-    el('report-chip').hidden = true;
+    setHidden('hero-card', true);
+    setHidden('report-chip', true);
     el('punch-row').innerHTML = '';
     el('ledger-body').innerHTML = '';
-    el('dash-empty').hidden = false;
+    setHidden('dash-empty', false);
     setScreen('screen-dashboard');
     return;
   }
 
   state.currentYear = availableYears[0];
-  el('dash-empty').hidden = true;
-  el('hero-card').hidden = false;
+  setHidden('dash-empty', true);
+  setHidden('hero-card', false);
 
   const yearPicker = el('year-picker');
   const yearSelect = el('year-select');
@@ -227,7 +236,7 @@ function showDashboard(agentName) {
     opt.textContent = y;
     yearSelect.appendChild(opt);
   });
-  yearPicker.hidden = availableYears.length <= 1;
+  setHidden(yearPicker, availableYears.length <= 1);
   yearSelect.onchange = () => {
     state.currentYear = yearSelect.value;
     renderYear(agentName, state.currentYear);
@@ -269,11 +278,11 @@ function renderYear(agentName, year) {
   // --- Solde reporté ---
   const reportChip = el('report-chip');
   if (record.report && record.report.value !== null) {
-    reportChip.hidden = false;
+    setHidden(reportChip, false);
     el('report-date').textContent = record.report.label;
     el('report-value').textContent = formatSignedDuration(record.report.value * 24);
   } else {
-    reportChip.hidden = true;
+    setHidden(reportChip, true);
   }
 
   // --- Bande de pointage (tuiles par mois) ---
@@ -337,11 +346,7 @@ function formatSignedDuration(hoursDecimal) {
 
 function setScreen(id) {
   ['screen-login', 'screen-dashboard', 'screen-fatal'].forEach((s) => {
-    const show = s === id;
-    el(s).hidden = !show;
-    // On force aussi le display en ligne : si le CSS définit .screen{display:...}
-    // sans tenir compte de [hidden], l'attribut seul ne suffit pas à masquer l'écran.
-    el(s).style.display = show ? '' : 'none';
+    setHidden(s, s !== id);
   });
 }
 
