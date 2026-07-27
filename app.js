@@ -72,7 +72,12 @@ async function loadWorkbookFile(path) {
     if (!rows.length) return;
 
     const header = rows[0];
-    const reportLabel = header[1] || 'Solde initial';
+    // Le texte affiché est "Solde reporté au <label>" : on retire un éventuel
+    // préfixe "Solde" déjà présent dans la cellule d'en-tête du fichier Excel
+    // pour éviter "Solde reporté au Solde 31/08".
+    let reportLabel = header[1] != null ? String(header[1]).trim() : '';
+    reportLabel = reportLabel.replace(/^solde\s+/i, '').trim();
+    if (!reportLabel) reportLabel = 'initial';
     const monthCols = header.slice(2); // noms de mois tels qu'écrits dans le fichier
 
     const yearData = {};
@@ -229,7 +234,7 @@ function renderYear(agentName, year) {
   // --- Carte principale : dernier solde connu ---
   if (lastMonth) {
     const hours = months[lastMonth] * 24;
-    el('hero-label').textContent = `Solde au 30/${lastMonth} ${year}`;
+    el('hero-label').textContent = `Solde au 30 ${lastMonth} ${year}`;
     el('hero-value').textContent = formatSignedDuration(hours);
     el('hero-value').className = 'hero-value' + (hours < 0 ? ' negative' : '');
     const idx = withData.length - 2 >= 0 ? withData[withData.length - 2] : null;
@@ -306,7 +311,10 @@ function renderYear(agentName, year) {
 function formatSignedDuration(hoursDecimal) {
   const sign = hoursDecimal < 0 ? '-' : '';
   const abs = Math.abs(hoursDecimal);
-  const totalMinutes = Math.round(abs * 60);
+  // On tronque (pas d'arrondi) pour rester fidèle à la valeur du fichier Excel.
+  // Le Math.round intermédiaire en millisecondes corrige uniquement les
+  // imprécisions de calcul flottant (ex: 52.65 stocké comme 52.64999999...).
+  const totalMinutes = Math.floor(Math.round(abs * 60 * 60 * 1000) / 60000);
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
   return `${sign}${h}:${String(m).padStart(2, '0')}`;
