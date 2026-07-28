@@ -289,7 +289,7 @@ function renderYear(agentName, year) {
   // --- Registre détaillé ---
   const body = el('ledger-body');
   body.innerHTML = '';
-  let prevHours = record.report && record.report.value !== null ? record.report.value * 24 : null;
+  let prevHours = null;
 
   filledMonths.forEach((m) => {
     const v = months[m];
