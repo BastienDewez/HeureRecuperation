@@ -45,7 +45,7 @@ app.js                     Lecture du fichier Excel, logique de connexion, affic
 admin-pin-generator.html   Outil pour générer les codes personnels (usage admin uniquement)
 data/
   HeureAdmin.xlsx          Fichier de données — à remplacer chaque mois
-  agents.json              Liste des agents + code personnel (haché)
+  agents.json              Identifiant -> nom d'agent + code personnel (haché)
 ```
 
 ## Déploiement sur GitHub Pages
@@ -72,32 +72,43 @@ Chaque mois, une fois le fichier `HeureAdmin.xlsx` à jour :
 - Une feuille par année (ex. `2026`, puis `2027` l'an prochain — l'application
   détecte automatiquement toutes les feuilles et propose un sélecteur d'année
   s'il y en a plusieurs).
-- Colonne A : nom de l'agent, exactement comme dans `data/agents.json`.
+- Colonne A : nom de l'agent, exactement comme le champ `nom` correspondant
+  dans `data/agents.json`.
 - Colonne B : solde reporté initial.
 - Colonnes suivantes : une par mois (Janvier à Décembre), au format durée
   Excel (`[h]:mm`). Les mois non encore atteints peuvent rester vides.
 
 ## Gérer la liste des agents et leurs codes personnels
 
-`data/agents.json` associe chaque nom au **hachage SHA-256** de son code
-personnel (jamais le code en clair) :
+`data/agents.json` associe à chaque **identifiant unique** (choisi par vous,
+ex. matricule ou initiales+numéro) le nom exact de l'agent et le **hachage
+SHA-256** de son code personnel (jamais le code en clair) :
 
 ```json
 {
-  "Beckers Michel": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  "BM01": {
+    "nom": "Beckers Michel",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  }
 }
 ```
 
-Pour changer ou ajouter un code :
+C'est cet identifiant que l'agent saisit dans le champ « Identifiant » à la
+connexion — il n'y a plus de liste déroulante des noms, donc personne ne
+peut voir la liste complète des collègues juste en ouvrant le site.
+
+Pour changer ou ajouter un agent :
 
 1. Ouvrez `admin-pin-generator.html` dans un navigateur (en local, ou en le
    visitant sur votre site publié).
-2. Entrez le nom exact de l'agent et le nouveau code, cliquez sur
-   « Ajouter à la liste ».
+2. Entrez un identifiant unique, le nom exact de l'agent (tel qu'il apparaît
+   dans le fichier Excel) et le nouveau code, cliquez sur « Ajouter à la liste ».
 3. Copiez le JSON généré dans `data/agents.json`, commitez et poussez.
 
 **Tous les agents ont par défaut le code `0000`.** Changez-le avant de
 communiquer l'accès à l'équipe — un code à 6 chiffres est préférable à 4.
+Communiquez à chaque agent son identifiant **et** son code personnel par un
+canal séparé (ex. en main propre ou par message privé).
 
 ## Tester en local avant de publier
 

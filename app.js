@@ -15,7 +15,7 @@ const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
 const WORKBOOK_FILES = ['data/HeureAdmin.xlsx', 'data/HeureAudio.xlsx', 'data/HeureLoisir.xlsx'];
 
 const state = {
-  agentsCreds: null,   // { "Nom Prénom": "sha256hash" }
+  agentsCreds: null,   // { "identifiant": { nom: "Nom Prénom", hash: "sha256hash" } }
   workbookData: null,  // { "2026": { "Nom Prénom": { report: {label, value}, months: {Janvier: value|null, ...} } } }
   years: [],
   currentAgent: null,
@@ -48,7 +48,6 @@ async function init() {
     state.workbookData = workbook.data;
     state.years = workbook.years;
 
-    populateAgentSelect(Object.keys(creds).sort((a, b) => a.localeCompare(b, 'fr')));
     setHidden('load-status', true);
   } catch (err) {
     console.error(err);
@@ -144,35 +143,25 @@ function numericOrNull(v) {
    Écran de connexion
    ------------------------------------------------------------------- */
 
-function populateAgentSelect(names) {
-  const select = el('agent-select');
-  names.forEach((name) => {
-    const opt = document.createElement('option');
-    opt.value = name;
-    opt.textContent = name;
-    select.appendChild(opt);
-  });
-}
-
 function wireLoginForm() {
   el('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     setHidden('login-error', true);
 
-    const name = el('agent-select').value;
+    const id = el('agent-id-input').value.trim();
     const pin = el('pin-input').value.trim();
-    if (!name || !pin) return;
+    if (!id || !pin) return;
 
-    const expectedHash = state.agentsCreds[name];
+    const record = state.agentsCreds[id];
     const enteredHash = await sha256(pin);
 
-    if (!expectedHash || enteredHash !== expectedHash) {
+    if (!record || enteredHash !== record.hash) {
       setHidden('login-error', false);
       return;
     }
 
-    sessionStorage.setItem('solde-agent', name);
-    showDashboard(name);
+    sessionStorage.setItem('solde-agent', record.nom);
+    showDashboard(record.nom);
   });
 }
 
@@ -185,7 +174,7 @@ function wireLogout() {
     state.currentAgent = null;
     state.currentYear = null;
     el('pin-input').value = '';
-    el('agent-select').value = '';
+    el('agent-id-input').value = '';
     el('dash-name').textContent = '—';
     el('hero-label').textContent = 'Solde au —';
     el('hero-value').textContent = '—';

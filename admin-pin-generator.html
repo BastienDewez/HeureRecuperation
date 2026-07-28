@@ -28,6 +28,9 @@
         Cette page ne fait rien d'autre que calculer, dans votre navigateur, le hachage SHA-256
         d'un code personnel. Elle ne l'envoie nulle part. Ajoutez chaque ligne générée dans
         <code>data/agents.json</code>, puis commitez le fichier.<br><br>
+        <strong>Identifiant :</strong> choisissez une valeur unique par agent (ex: matricule,
+        initiales + numéro...). C'est cette valeur — et non le nom — que l'agent saisira pour
+        se connecter ; elle n'apparaît dans aucune liste déroulante.<br><br>
         <strong>Rappel :</strong> le dépôt est public — n'importe qui peut lire <code>agents.json</code>.
         Le hachage évite juste que le code apparaisse en clair ; ce n'est pas une protection contre
         une personne motivée à le deviner. Choisissez des codes à 6 chiffres plutôt que 4 si possible,
@@ -35,6 +38,7 @@
       </p>
 
       <div class="row">
+        <input type="text" id="agent-id" placeholder="Identifiant unique (ex: BM01)">
         <input type="text" id="name" placeholder="Nom exact tel qu'il apparaît dans le fichier Excel">
         <input type="text" id="pin" placeholder="Code personnel (ex: 483920)">
       </div>
@@ -60,18 +64,20 @@
     document.getElementById('output').textContent = JSON.stringify(entries, null, 2);
     const tbody = document.querySelector('#preview tbody');
     tbody.innerHTML = '';
-    Object.entries(entries).forEach(([name, hash]) => {
+    Object.entries(entries).forEach(([id, record]) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${name}</td><td>${hash.slice(0,12)}…</td>`;
+      tr.innerHTML = `<td>${id}</td><td>${record.nom}</td><td>${record.hash.slice(0,12)}…</td>`;
       tbody.appendChild(tr);
     });
   }
 
   document.getElementById('add-btn').addEventListener('click', async () => {
+    const id = document.getElementById('agent-id').value.trim();
     const name = document.getElementById('name').value.trim();
     const pin = document.getElementById('pin').value.trim();
-    if (!name || !pin) return;
-    entries[name] = await sha256(pin);
+    if (!id || !name || !pin) return;
+    entries[id] = { nom: name, hash: await sha256(pin) };
+    document.getElementById('agent-id').value = '';
     document.getElementById('pin').value = '';
     render();
   });

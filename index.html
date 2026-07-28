@@ -20,14 +20,12 @@
       <div class="card-body">
         <p class="eyebrow">Suivi du temps</p>
         <h1>Mon solde d'heures</h1>
-        <p class="lede">Sélectionnez votre nom et entrez votre code personnel pour consulter votre solde du mois et des mois précédents.</p>
+        <p class="lede">Entrez votre identifiant et votre code personnel pour consulter votre solde du mois et des mois précédents.</p>
 
         <form id="login-form" autocomplete="off">
           <label class="field">
-            <span>Agent</span>
-            <select id="agent-select" required>
-              <option value="" disabled selected>Choisir un nom…</option>
-            </select>
+            <span>Identifiant</span>
+            <input type="text" id="agent-id-input" autocomplete="off" placeholder="Votre identifiant" required>
           </label>
 
           <label class="field">
@@ -36,7 +34,7 @@
           </label>
 
           <button type="submit" class="btn-primary">Voir mon solde</button>
-          <p id="login-error" class="error" role="alert" hidden>Nom ou code incorrect. Réessayez.</p>
+          <p id="login-error" class="error" role="alert" hidden>Identifiant ou code incorrect. Réessayez.</p>
         </form>
         <p id="load-status" class="status">Chargement des données…</p>
       </div>
