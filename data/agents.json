@@ -58,5 +58,45 @@
  "deweba01": {
     "nom": "Dewez Bastien",
     "hash": "82d2793a66f51a1dc8a6b6ddae8f7f211e2fe6f4e1150c738c6ae8a3675af579"
+  },
+ "dirimi01": {
+    "nom": "Dirick Michel",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
+  "djeupa01": {
+    "nom": "Djeukoua Paul-Alain",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
+  "duchmi01": {
+    "nom": "Duchene Michael",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
+  "duruan01": {
+    "nom": "Duruisseau Antoine",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
+  "heirad01": {
+    "nom": "Heirbrant Adrien",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
+  "hendch01": {
+    "nom": "Hendrickx Chloé",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
+  "hidalg01": {
+    "nom": "Hidalgo Jéronimo",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
+  "inzeni01": {
+    "nom": "Inzerilli Nicolo",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
+  "jamabe01": {
+    "nom": "Jamar Benoit",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
+  "jamada01": {
+    "nom": "Jamart Daniel",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
   }
 }
