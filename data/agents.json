@@ -1,4 +1,20 @@
 {
+ "beckdy01": {
+    "nom": "Becker Dylan",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
+  "becker05": {
+    "nom": "Beckers Michel",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
+  "blavla01": {
+    "nom": "Blavier Laurent",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
+  "bousge01": {
+    "nom": "Boussifet Gérard",
+    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
+  },
  "breupa01": {
     "nom": "Breucker Pascal",
     "hash": "377fb4035f9722ee75fb72167585e2db1cb47978f47a3699f88a3949acf3a1fd"
