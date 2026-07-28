@@ -1,6 +1,7 @@
 /* =====================================================================
    Solde d'heures — application statique (GitHub Pages)
-   - Lit data/HeureAdmin.xlsx directement dans le navigateur (SheetJS)
+   - Lit data/HeureAdmin.xlsx, data/HeureAudio.xlsx et data/HeureLoisir.xlsx
+     directement dans le navigateur (SheetJS) et fusionne les trois
    - Vérifie le nom + code personnel via data/agents.json (codes hachés)
    - Affiche le solde du mois en cours et l'historique des mois précédents
    ===================================================================== */
@@ -202,18 +203,18 @@ function showDashboard(agentName) {
   const availableYears = state.years.filter((y) => state.workbookData[y][agentName]);
   if (!availableYears.length) {
     el('dash-name').textContent = agentName;
-    el('hero-card').hidden = true;
-    el('report-chip').hidden = true;
+    setHidden('hero-card', true);
+    setHidden('report-chip', true);
     el('punch-row').innerHTML = '';
     el('ledger-body').innerHTML = '';
-    el('dash-empty').hidden = false;
+    setHidden('dash-empty', false);
     setScreen('screen-dashboard');
     return;
   }
 
   state.currentYear = availableYears[0];
-  el('dash-empty').hidden = true;
-  el('hero-card').hidden = false;
+  setHidden('dash-empty', true);
+  setHidden('hero-card', false);
 
   const yearPicker = el('year-picker');
   const yearSelect = el('year-select');
@@ -224,7 +225,7 @@ function showDashboard(agentName) {
     opt.textContent = y;
     yearSelect.appendChild(opt);
   });
-  yearPicker.hidden = availableYears.length <= 1;
+  setHidden(yearPicker, availableYears.length <= 1);
   yearSelect.onchange = () => {
     state.currentYear = yearSelect.value;
     renderYear(agentName, state.currentYear);
@@ -246,7 +247,7 @@ function renderYear(agentName, year) {
   // --- Carte principale : dernier solde connu ---
   if (lastMonth) {
     const hours = months[lastMonth] * 24;
-    el('hero-label').textContent = `Solde au 30 ${lastMonth.toLowerCase()} ${year}`;
+    el('hero-label').textContent = `Solde au 30 ${lastMonth} ${year}`;
     el('hero-value').textContent = formatSignedDuration(hours);
     el('hero-value').className = 'hero-value' + (hours < 0 ? ' negative' : '');
     const idx = withData.length - 2 >= 0 ? withData[withData.length - 2] : null;
@@ -288,7 +289,7 @@ function renderYear(agentName, year) {
   // --- Registre détaillé ---
   const body = el('ledger-body');
   body.innerHTML = '';
-  let prevHours = null;
+  let prevHours = record.report && record.report.value !== null ? record.report.value * 24 : null;
 
   filledMonths.forEach((m) => {
     const v = months[m];
@@ -323,7 +324,10 @@ function renderYear(agentName, year) {
 function formatSignedDuration(hoursDecimal) {
   const sign = hoursDecimal < 0 ? '-' : '';
   const abs = Math.abs(hoursDecimal);
-  const totalMinutes = Math.round(abs * 60);
+  // On tronque (pas d'arrondi) pour rester fidèle à la valeur du fichier Excel.
+  // Le Math.round intermédiaire en millisecondes corrige uniquement les
+  // imprécisions de calcul flottant (ex: 52.65 stocké comme 52.64999999...).
+  const totalMinutes = Math.floor(Math.round(abs * 60 * 60 * 1000) / 60000);
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
   return `${sign}${h}:${String(m).padStart(2, '0')}`;
@@ -331,7 +335,7 @@ function formatSignedDuration(hoursDecimal) {
 
 function setScreen(id) {
   ['screen-login', 'screen-dashboard', 'screen-fatal'].forEach((s) => {
-    el(s).hidden = s !== id;
+    setHidden(s, s !== id);
   });
 }
 
