@@ -8,8 +8,13 @@
 const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
                     'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
+/* Liste des fichiers sources : un par secteur. Chaque agent n'apparaît
+   que dans UN de ces fichiers ; on les fusionne donc tous ensemble et
+   l'application retrouve automatiquement le bon secteur à la connexion. */
+const WORKBOOK_FILES = ['data/HeureAdmin.xlsx', 'data/HeureAudio.xlsx', 'data/HeureLoisir.xlsx'];
+
 const state = {
-  agentsCreds: null,   // { "Nom Prénom": "sha256hash" }
+  agentsCreds: null,   // { "identifiant": { nom: "Nom Prénom", hash: "sha256hash" } }
   workbookData: null,  // { "2026": { "Nom Prénom": { report: {label, value}, months: {Janvier: value|null, ...} } } }
   years: [],
   currentAgent: null,
@@ -17,6 +22,15 @@ const state = {
 };
 
 const el = (id) => document.getElementById(id);
+
+// Bascule la visibilité d'un élément en forçant aussi le style en ligne :
+// si le CSS du projet définit un display sur cet élément sans tenir compte
+// de [hidden], l'attribut seul ne suffit pas à le masquer réellement.
+function setHidden(id, hide) {
+  const node = typeof id === 'string' ? el(id) : id;
+  node.hidden = hide;
+  node.style.display = hide ? 'none' : '';
+}
 
 init();
 
@@ -33,8 +47,7 @@ async function init() {
     state.workbookData = workbook.data;
     state.years = workbook.years;
 
-    populateAgentSelect(Object.keys(creds).sort((a, b) => a.localeCompare(b, 'fr')));
-    el('load-status').hidden = true;
+    setHidden('load-status', true);
   } catch (err) {
     console.error(err);
     showFatal(err.message || String(err));
@@ -51,9 +64,9 @@ async function loadAgentCreds() {
   return res.json();
 }
 
-async function loadWorkbook() {
-  const res = await fetch('data/HeureAdmin.xlsx', { cache: 'no-store' });
-  if (!res.ok) throw new Error("Impossible de charger data/HeureAdmin.xlsx (code " + res.status + ").");
+async function loadWorkbookFile(path) {
+  const res = await fetch(path, { cache: 'no-store' });
+  if (!res.ok) throw new Error("Impossible de charger " + path + " (code " + res.status + ").");
   const buf = await res.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array', raw: true });
 
@@ -66,7 +79,12 @@ async function loadWorkbook() {
     if (!rows.length) return;
 
     const header = rows[0];
-    const reportLabel = header[1] || 'Solde initial';
+    // Le texte affiché est "Solde reporté au <label>" : on retire un éventuel
+    // préfixe "Solde" déjà présent dans la cellule d'en-tête du fichier Excel
+    // pour éviter "Solde reporté au Solde 31/08".
+    let reportLabel = header[1] != null ? String(header[1]).trim() : '';
+    reportLabel = reportLabel.replace(/^solde\s+/i, '').trim();
+    if (!reportLabel) reportLabel = 'initial';
     const monthCols = header.slice(2); // noms de mois tels qu'écrits dans le fichier
 
     const yearData = {};
@@ -93,7 +111,25 @@ async function loadWorkbook() {
     years.push(sheetName);
   });
 
-  years.sort((a, b) => b.localeCompare(a)); // plus récent d'abord
+  return { data, years };
+}
+
+async function loadWorkbook() {
+  const results = await Promise.all(
+    WORKBOOK_FILES.map((path) => loadWorkbookFile(path))
+  );
+
+  const data = {};
+  const yearsSet = new Set();
+
+  results.forEach((result) => {
+    result.years.forEach((year) => {
+      yearsSet.add(year);
+      data[year] = Object.assign(data[year] || {}, result.data[year]);
+    });
+  });
+
+  const years = Array.from(yearsSet).sort((a, b) => b.localeCompare(a)); // plus récent d'abord
   return { data, years };
 }
 
@@ -106,42 +142,47 @@ function numericOrNull(v) {
    Écran de connexion
    ------------------------------------------------------------------- */
 
-function populateAgentSelect(names) {
-  const select = el('agent-select');
-  names.forEach((name) => {
-    const opt = document.createElement('option');
-    opt.value = name;
-    opt.textContent = name;
-    select.appendChild(opt);
-  });
-}
-
 function wireLoginForm() {
   el('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    el('login-error').hidden = true;
+    setHidden('login-error', true);
 
-    const name = el('agent-select').value;
+    const id = el('agent-id-input').value.trim();
     const pin = el('pin-input').value.trim();
-    if (!name || !pin) return;
+    if (!id || !pin) return;
 
-    const expectedHash = state.agentsCreds[name];
+    const record = state.agentsCreds[id];
     const enteredHash = await sha256(pin);
 
-    if (!expectedHash || enteredHash !== expectedHash) {
-      el('login-error').hidden = false;
+    if (!record || enteredHash !== record.hash) {
+      setHidden('login-error', false);
       return;
     }
 
-    sessionStorage.setItem('solde-agent', name);
-    showDashboard(name);
+    sessionStorage.setItem('solde-agent', record.nom);
+    showDashboard(record.nom);
   });
 }
 
 function wireLogout() {
   el('logout-btn').addEventListener('click', () => {
     sessionStorage.removeItem('solde-agent');
+
+    // Réinitialise l'état et le formulaire pour qu'aucune info du
+    // précédent agent ne reste affichée ou pré-remplie.
+    state.currentAgent = null;
+    state.currentYear = null;
     el('pin-input').value = '';
+    el('agent-id-input').value = '';
+    el('dash-name').textContent = '—';
+    el('hero-label').textContent = 'Solde au —';
+    el('hero-value').textContent = '—';
+    el('hero-value').className = 'hero-value';
+    el('hero-sub').textContent = '';
+    setHidden('report-chip', true);
+    el('punch-row').innerHTML = '';
+    el('ledger-body').innerHTML = '';
+
     setScreen('screen-login');
   });
 }
@@ -225,11 +266,11 @@ function renderYear(agentName, year) {
   // --- Solde reporté ---
   const reportChip = el('report-chip');
   if (record.report && record.report.value !== null) {
-    reportChip.hidden = false;
-    el('report-date').textContent = record.report.label.replace(/^solde\s*/i, '').trim();
+    setHidden(reportChip, false);
+    el('report-date').textContent = record.report.label;
     el('report-value').textContent = formatSignedDuration(record.report.value * 24);
   } else {
-    reportChip.hidden = true;
+    setHidden(reportChip, true);
   }
 
   // --- Bande de pointage (tuiles par mois) ---
