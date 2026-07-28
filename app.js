@@ -1,7 +1,6 @@
 /* =====================================================================
    Solde d'heures — application statique (GitHub Pages)
-   - Lit data/HeureAdmin.xlsx, data/HeureAudio.xlsx et data/HeureLoisir.xlsx
-     directement dans le navigateur (SheetJS) et fusionne les trois
+   - Lit data/HeureAdmin.xlsx directement dans le navigateur (SheetJS)
    - Vérifie le nom + code personnel via data/agents.json (codes hachés)
    - Affiche le solde du mois en cours et l'historique des mois précédents
    ===================================================================== */
@@ -9,13 +8,8 @@
 const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
                     'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
-/* Liste des fichiers sources : un par secteur. Chaque agent n'apparaît
-   que dans UN de ces fichiers ; on les fusionne donc tous ensemble et
-   l'application retrouve automatiquement le bon secteur à la connexion. */
-const WORKBOOK_FILES = ['data/HeureAdmin.xlsx', 'data/HeureAudio.xlsx', 'data/HeureLoisir.xlsx'];
-
 const state = {
-  agentsCreds: null,   // { "identifiant": { nom: "Nom Prénom", hash: "sha256hash" } }
+  agentsCreds: null,   // { "Nom Prénom": "sha256hash" }
   workbookData: null,  // { "2026": { "Nom Prénom": { report: {label, value}, months: {Janvier: value|null, ...} } } }
   years: [],
   currentAgent: null,
@@ -23,15 +17,6 @@ const state = {
 };
 
 const el = (id) => document.getElementById(id);
-
-// Bascule la visibilité d'un élément en forçant aussi le style en ligne :
-// si le CSS du projet définit un display sur cet élément sans tenir compte
-// de [hidden], l'attribut seul ne suffit pas à le masquer réellement.
-function setHidden(id, hide) {
-  const node = typeof id === 'string' ? el(id) : id;
-  node.hidden = hide;
-  node.style.display = hide ? 'none' : '';
-}
 
 init();
 
@@ -48,7 +33,8 @@ async function init() {
     state.workbookData = workbook.data;
     state.years = workbook.years;
 
-    setHidden('load-status', true);
+    populateAgentSelect(Object.keys(creds).sort((a, b) => a.localeCompare(b, 'fr')));
+    el('load-status').hidden = true;
   } catch (err) {
     console.error(err);
     showFatal(err.message || String(err));
@@ -65,9 +51,9 @@ async function loadAgentCreds() {
   return res.json();
 }
 
-async function loadWorkbookFile(path) {
-  const res = await fetch(path, { cache: 'no-store' });
-  if (!res.ok) throw new Error("Impossible de charger " + path + " (code " + res.status + ").");
+async function loadWorkbook() {
+  const res = await fetch('data/HeureAdmin.xlsx', { cache: 'no-store' });
+  if (!res.ok) throw new Error("Impossible de charger data/HeureAdmin.xlsx (code " + res.status + ").");
   const buf = await res.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array', raw: true });
 
@@ -80,12 +66,7 @@ async function loadWorkbookFile(path) {
     if (!rows.length) return;
 
     const header = rows[0];
-    // Le texte affiché est "Solde reporté au <label>" : on retire un éventuel
-    // préfixe "Solde" déjà présent dans la cellule d'en-tête du fichier Excel
-    // pour éviter "Solde reporté au Solde 31/08".
-    let reportLabel = header[1] != null ? String(header[1]).trim() : '';
-    reportLabel = reportLabel.replace(/^solde\s+/i, '').trim();
-    if (!reportLabel) reportLabel = 'initial';
+    const reportLabel = header[1] || 'Solde initial';
     const monthCols = header.slice(2); // noms de mois tels qu'écrits dans le fichier
 
     const yearData = {};
@@ -112,25 +93,7 @@ async function loadWorkbookFile(path) {
     years.push(sheetName);
   });
 
-  return { data, years };
-}
-
-async function loadWorkbook() {
-  const results = await Promise.all(
-    WORKBOOK_FILES.map((path) => loadWorkbookFile(path))
-  );
-
-  const data = {};
-  const yearsSet = new Set();
-
-  results.forEach((result) => {
-    result.years.forEach((year) => {
-      yearsSet.add(year);
-      data[year] = Object.assign(data[year] || {}, result.data[year]);
-    });
-  });
-
-  const years = Array.from(yearsSet).sort((a, b) => b.localeCompare(a)); // plus récent d'abord
+  years.sort((a, b) => b.localeCompare(a)); // plus récent d'abord
   return { data, years };
 }
 
@@ -143,47 +106,42 @@ function numericOrNull(v) {
    Écran de connexion
    ------------------------------------------------------------------- */
 
+function populateAgentSelect(names) {
+  const select = el('agent-select');
+  names.forEach((name) => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
+}
+
 function wireLoginForm() {
   el('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    setHidden('login-error', true);
+    el('login-error').hidden = true;
 
-    const id = el('agent-id-input').value.trim();
+    const name = el('agent-select').value;
     const pin = el('pin-input').value.trim();
-    if (!id || !pin) return;
+    if (!name || !pin) return;
 
-    const record = state.agentsCreds[id];
+    const expectedHash = state.agentsCreds[name];
     const enteredHash = await sha256(pin);
 
-    if (!record || enteredHash !== record.hash) {
-      setHidden('login-error', false);
+    if (!expectedHash || enteredHash !== expectedHash) {
+      el('login-error').hidden = false;
       return;
     }
 
-    sessionStorage.setItem('solde-agent', record.nom);
-    showDashboard(record.nom);
+    sessionStorage.setItem('solde-agent', name);
+    showDashboard(name);
   });
 }
 
 function wireLogout() {
   el('logout-btn').addEventListener('click', () => {
     sessionStorage.removeItem('solde-agent');
-
-    // Réinitialise l'état et le formulaire pour qu'aucune info du
-    // précédent agent ne reste affichée ou pré-remplie.
-    state.currentAgent = null;
-    state.currentYear = null;
     el('pin-input').value = '';
-    el('agent-id-input').value = '';
-    el('dash-name').textContent = '—';
-    el('hero-label').textContent = 'Solde au —';
-    el('hero-value').textContent = '—';
-    el('hero-value').className = 'hero-value';
-    el('hero-sub').textContent = '';
-    setHidden('report-chip', true);
-    el('punch-row').innerHTML = '';
-    el('ledger-body').innerHTML = '';
-
     setScreen('screen-login');
   });
 }
@@ -203,18 +161,18 @@ function showDashboard(agentName) {
   const availableYears = state.years.filter((y) => state.workbookData[y][agentName]);
   if (!availableYears.length) {
     el('dash-name').textContent = agentName;
-    setHidden('hero-card', true);
-    setHidden('report-chip', true);
+    el('hero-card').hidden = true;
+    el('report-chip').hidden = true;
     el('punch-row').innerHTML = '';
     el('ledger-body').innerHTML = '';
-    setHidden('dash-empty', false);
+    el('dash-empty').hidden = false;
     setScreen('screen-dashboard');
     return;
   }
 
   state.currentYear = availableYears[0];
-  setHidden('dash-empty', true);
-  setHidden('hero-card', false);
+  el('dash-empty').hidden = true;
+  el('hero-card').hidden = false;
 
   const yearPicker = el('year-picker');
   const yearSelect = el('year-select');
@@ -225,7 +183,7 @@ function showDashboard(agentName) {
     opt.textContent = y;
     yearSelect.appendChild(opt);
   });
-  setHidden(yearPicker, availableYears.length <= 1);
+  yearPicker.hidden = availableYears.length <= 1;
   yearSelect.onchange = () => {
     state.currentYear = yearSelect.value;
     renderYear(agentName, state.currentYear);
@@ -247,7 +205,7 @@ function renderYear(agentName, year) {
   // --- Carte principale : dernier solde connu ---
   if (lastMonth) {
     const hours = months[lastMonth] * 24;
-    el('hero-label').textContent = `Solde au 30 ${lastMonth} ${year}`;
+    el('hero-label').textContent = `Solde au 30 ${lastMonth.toLowerCase()} ${year}`;
     el('hero-value').textContent = formatSignedDuration(hours);
     el('hero-value').className = 'hero-value' + (hours < 0 ? ' negative' : '');
     const idx = withData.length - 2 >= 0 ? withData[withData.length - 2] : null;
@@ -267,11 +225,11 @@ function renderYear(agentName, year) {
   // --- Solde reporté ---
   const reportChip = el('report-chip');
   if (record.report && record.report.value !== null) {
-    setHidden(reportChip, false);
-    el('report-date').textContent = record.report.label;
+    reportChip.hidden = false;
+    el('report-date').textContent = record.report.label.replace(/^solde\s*/i, '').trim();
     el('report-value').textContent = formatSignedDuration(record.report.value * 24);
   } else {
-    setHidden(reportChip, true);
+    reportChip.hidden = true;
   }
 
   // --- Bande de pointage (tuiles par mois) ---
@@ -289,7 +247,7 @@ function renderYear(agentName, year) {
   // --- Registre détaillé ---
   const body = el('ledger-body');
   body.innerHTML = '';
-  let prevHours = record.report && record.report.value !== null ? record.report.value * 24 : null;
+  let prevHours = null;
 
   filledMonths.forEach((m) => {
     const v = months[m];
@@ -324,10 +282,7 @@ function renderYear(agentName, year) {
 function formatSignedDuration(hoursDecimal) {
   const sign = hoursDecimal < 0 ? '-' : '';
   const abs = Math.abs(hoursDecimal);
-  // On tronque (pas d'arrondi) pour rester fidèle à la valeur du fichier Excel.
-  // Le Math.round intermédiaire en millisecondes corrige uniquement les
-  // imprécisions de calcul flottant (ex: 52.65 stocké comme 52.64999999...).
-  const totalMinutes = Math.floor(Math.round(abs * 60 * 60 * 1000) / 60000);
+  const totalMinutes = Math.round(abs * 60);
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
   return `${sign}${h}:${String(m).padStart(2, '0')}`;
@@ -335,7 +290,7 @@ function formatSignedDuration(hoursDecimal) {
 
 function setScreen(id) {
   ['screen-login', 'screen-dashboard', 'screen-fatal'].forEach((s) => {
-    setHidden(s, s !== id);
+    el(s).hidden = s !== id;
   });
 }
 
