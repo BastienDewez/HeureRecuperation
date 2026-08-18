@@ -39,7 +39,7 @@
     "nom": "Deklerck Gaetan",
     "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
   },
-  "Delfjo01": {
+  "delfjo01": {
     "nom": "Delforge Jonathan",
     "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
   },
@@ -58,10 +58,6 @@
  "deweba01": {
     "nom": "Dewez Bastien",
     "hash": "82d2793a66f51a1dc8a6b6ddae8f7f211e2fe6f4e1150c738c6ae8a3675af579"
-  },
- "dirimi01": {
-    "nom": "Dirick Michel",
-    "hash": "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0"
   },
   "djeupa01": {
     "nom": "Djeukoua Paul-Alain",
