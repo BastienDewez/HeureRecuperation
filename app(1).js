@@ -1,0 +1,368 @@
+/* =====================================================================
+   Solde d'heures — application statique (GitHub Pages)
+   - Lit data/HeureAdmin.xlsx, data/HeureAudio.xlsx et data/HeureLoisir.xlsx
+     directement dans le navigateur (SheetJS) et fusionne les trois
+   - Vérifie le nom + code personnel via data/agents.json (codes hachés)
+   - Affiche le solde du mois en cours et l'historique des mois précédents
+   ===================================================================== */
+
+const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
+                    'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+/* Liste des fichiers sources : un par secteur. Chaque agent n'apparaît
+   que dans UN de ces fichiers ; on les fusionne donc tous ensemble et
+   l'application retrouve automatiquement le bon secteur à la connexion. */
+const WORKBOOK_FILES = ['data/HeureAdmin.xlsx', 'data/HeureAudio.xlsx', 'data/HeureLoisir.xlsx'];
+
+const state = {
+  agentsCreds: null,   // { "identifiant": { nom: "Nom Prénom", hash: "sha256hash" } }
+  workbookData: null,  // { "2026": { "Nom Prénom": { report: {label, value}, months: {Janvier: value|null, ...} } } }
+  years: [],
+  currentAgent: null,
+  currentYear: null,
+};
+
+const el = (id) => document.getElementById(id);
+
+// Bascule la visibilité d'un élément en forçant aussi le style en ligne :
+// si le CSS du projet définit un display sur cet élément sans tenir compte
+// de [hidden], l'attribut seul ne suffit pas à le masquer réellement.
+function setHidden(id, hide) {
+  const node = typeof id === 'string' ? el(id) : id;
+  node.hidden = hide;
+  node.style.display = hide ? 'none' : '';
+}
+
+init();
+
+async function init() {
+  wireLoginForm();
+  wireLogout();
+
+  try {
+    const [creds, workbook] = await Promise.all([
+      loadAgentCreds(),
+      loadWorkbook(),
+    ]);
+    state.agentsCreds = creds;
+    state.workbookData = workbook.data;
+    state.years = workbook.years;
+
+    setHidden('load-status', true);
+  } catch (err) {
+    console.error(err);
+    showFatal(err.message || String(err));
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Chargement des données
+   ------------------------------------------------------------------- */
+
+async function loadAgentCreds() {
+  const res = await fetch('data/agents.json', { cache: 'no-store' });
+  if (!res.ok) throw new Error("Impossible de charger data/agents.json (code " + res.status + ").");
+  return res.json();
+}
+
+async function loadWorkbookFile(path) {
+  const res = await fetch(path, { cache: 'no-store' });
+  if (!res.ok) throw new Error("Impossible de charger " + path + " (code " + res.status + ").");
+  const buf = await res.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array', raw: true });
+
+  const data = {};
+  const years = [];
+
+  wb.SheetNames.forEach((sheetName) => {
+    const sheet = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+    if (!rows.length) return;
+
+    const header = rows[0];
+    // Le texte affiché est "Solde reporté au <label>" : on retire un éventuel
+    // préfixe "Solde" déjà présent dans la cellule d'en-tête du fichier Excel
+    // pour éviter "Solde reporté au Solde 31/08".
+    let reportLabel = header[1] != null ? String(header[1]).trim() : '';
+    reportLabel = reportLabel.replace(/^solde\s+/i, '').trim();
+    if (!reportLabel) reportLabel = 'initial';
+    const monthCols = header.slice(2); // noms de mois tels qu'écrits dans le fichier
+
+    const yearData = {};
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      const agentName = row[0];
+      if (!agentName || typeof agentName !== 'string') continue;
+
+      const reportRaw = row[1];
+      const months = {};
+      monthCols.forEach((monthName, idx) => {
+        if (!monthName) return;
+        const raw = row[2 + idx];
+        months[monthName] = numericOrNull(raw);
+      });
+
+      yearData[agentName.trim()] = {
+        report: { label: reportLabel, value: numericOrNull(reportRaw) },
+        months,
+      };
+    }
+
+    data[sheetName] = yearData;
+    years.push(sheetName);
+  });
+
+  return { data, years };
+}
+
+async function loadWorkbook() {
+  const results = await Promise.all(
+    WORKBOOK_FILES.map((path) => loadWorkbookFile(path))
+  );
+
+  const data = {};
+  const yearsSet = new Set();
+
+  results.forEach((result) => {
+    result.years.forEach((year) => {
+      yearsSet.add(year);
+      data[year] = Object.assign(data[year] || {}, result.data[year]);
+    });
+  });
+
+  const years = Array.from(yearsSet).sort((a, b) => b.localeCompare(a)); // plus récent d'abord
+  return { data, years };
+}
+
+function numericOrNull(v) {
+  if (typeof v === 'number' && !Number.isNaN(v)) return v;
+  return null;
+}
+
+// Retourne le dernier jour civil du mois donné (28-31), en tenant compte
+// des années bissextiles pour février.
+function lastDayOfMonth(monthName, year) {
+  const idx = MONTHS_FR.indexOf(monthName);
+  if (idx === -1) return '';
+  return new Date(Number(year), idx + 1, 0).getDate();
+}
+
+/* ---------------------------------------------------------------------
+   Écran de connexion
+   ------------------------------------------------------------------- */
+
+function wireLoginForm() {
+  el('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    setHidden('login-error', true);
+
+    const id = el('agent-id-input').value.trim();
+    const pin = el('pin-input').value.trim();
+    if (!id || !pin) return;
+
+    const record = state.agentsCreds[id];
+    const enteredHash = await sha256(pin);
+
+    if (!record || enteredHash !== record.hash) {
+      setHidden('login-error', false);
+      return;
+    }
+
+    sessionStorage.setItem('solde-agent', record.nom);
+    showDashboard(record.nom);
+  });
+}
+
+function wireLogout() {
+  el('logout-btn').addEventListener('click', () => {
+    sessionStorage.removeItem('solde-agent');
+
+    // Réinitialise l'état et le formulaire pour qu'aucune info du
+    // précédent agent ne reste affichée ou pré-remplie.
+    state.currentAgent = null;
+    state.currentYear = null;
+    el('pin-input').value = '';
+    el('agent-id-input').value = '';
+    el('dash-name').textContent = '—';
+    el('hero-label').textContent = 'Solde au —';
+    el('hero-value').textContent = '—';
+    el('hero-value').className = 'hero-value';
+    el('hero-sub').textContent = '';
+    setHidden('report-chip', true);
+    el('punch-row').innerHTML = '';
+    el('ledger-body').innerHTML = '';
+
+    setScreen('screen-login');
+  });
+}
+
+async function sha256(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/* ---------------------------------------------------------------------
+   Tableau de bord
+   ------------------------------------------------------------------- */
+
+function showDashboard(agentName) {
+  state.currentAgent = agentName;
+
+  const availableYears = state.years.filter((y) => state.workbookData[y][agentName]);
+  if (!availableYears.length) {
+    el('dash-name').textContent = agentName;
+    setHidden('hero-card', true);
+    setHidden('report-chip', true);
+    el('punch-row').innerHTML = '';
+    el('ledger-body').innerHTML = '';
+    setHidden('dash-empty', false);
+    setScreen('screen-dashboard');
+    return;
+  }
+
+  state.currentYear = availableYears[0];
+  setHidden('dash-empty', true);
+  setHidden('hero-card', false);
+
+  const yearPicker = el('year-picker');
+  const yearSelect = el('year-select');
+  yearSelect.innerHTML = '';
+  availableYears.forEach((y) => {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y;
+    yearSelect.appendChild(opt);
+  });
+  setHidden(yearPicker, availableYears.length <= 1);
+  yearSelect.onchange = () => {
+    state.currentYear = yearSelect.value;
+    renderYear(agentName, state.currentYear);
+  };
+
+  el('dash-name').textContent = agentName;
+  renderYear(agentName, state.currentYear);
+  setScreen('screen-dashboard');
+}
+
+function renderYear(agentName, year) {
+  const record = state.workbookData[year][agentName];
+  const months = record.months;
+
+  const filledMonths = MONTHS_FR.filter((m) => Object.prototype.hasOwnProperty.call(months, m));
+  const withData = filledMonths.filter((m) => months[m] !== null);
+  const lastMonth = withData[withData.length - 1] || null;
+
+  // --- Carte principale : dernier solde connu ---
+  if (lastMonth) {
+    const hours = months[lastMonth] * 24;
+    el('hero-label').textContent = `Solde au ${lastDayOfMonth(lastMonth, year)} ${lastMonth} ${year}`;
+    el('hero-value').textContent = formatSignedDuration(hours);
+    el('hero-value').className = 'hero-value' + (hours < 0 ? ' negative' : '');
+    const idx = withData.length - 2 >= 0 ? withData[withData.length - 2] : null;
+    if (idx) {
+      const diff = hours - months[idx] * 24;
+      el('hero-sub').textContent = `${diff >= 0 ? '+' : ''}${formatSignedDuration(diff)} par rapport à ${idx}`;
+    } else {
+      el('hero-sub').textContent = '';
+    }
+  } else {
+    el('hero-label').textContent = `Année ${year}`;
+    el('hero-value').textContent = '—';
+    el('hero-value').className = 'hero-value';
+    el('hero-sub').textContent = 'Aucune donnée mensuelle pour cette année.';
+  }
+
+  // --- Solde reporté ---
+  const reportChip = el('report-chip');
+  if (record.report && record.report.value !== null) {
+    setHidden(reportChip, false);
+    el('report-date').textContent = record.report.label;
+    el('report-value').textContent = formatSignedDuration(record.report.value * 24);
+  } else {
+    setHidden(reportChip, true);
+  }
+
+  // --- Bande de pointage (tuiles par mois) ---
+  const punchRow = el('punch-row');
+  punchRow.innerHTML = '';
+  filledMonths.forEach((m) => {
+    const v = months[m];
+    const tile = document.createElement('div');
+    tile.className = 'punch-tile' + (m === lastMonth ? ' is-current' : '');
+    const valueClass = v === null ? 'empty' : (v < 0 ? 'negative' : 'positive');
+    tile.innerHTML = `<p class="m">${m.slice(0, 3)}</p><p class="v ${valueClass}">${v === null ? '—' : formatSignedDuration(v * 24)}</p>`;
+    punchRow.appendChild(tile);
+  });
+
+  // --- Registre détaillé ---
+  const body = el('ledger-body');
+  body.innerHTML = '';
+  let prevHours = null;
+
+  filledMonths.forEach((m) => {
+    const v = months[m];
+    const tr = document.createElement('tr');
+    if (m === lastMonth) tr.className = 'current-row';
+
+    const hours = v === null ? null : v * 24;
+    const diff = (hours !== null && prevHours !== null) ? hours - prevHours : null;
+
+    const tdMonth = document.createElement('td');
+    tdMonth.textContent = `${m} ${year}`;
+
+    const tdValue = document.createElement('td');
+    tdValue.textContent = hours === null ? '—' : formatSignedDuration(hours);
+    if (hours !== null) tdValue.className = hours < 0 ? 'negative' : 'positive';
+
+    const tdDiff = document.createElement('td');
+    tdDiff.textContent = diff === null ? '—' : `${diff >= 0 ? '+' : ''}${formatSignedDuration(diff)}`;
+    if (diff !== null) tdDiff.className = diff < 0 ? 'negative' : 'positive';
+
+    tr.append(tdMonth, tdValue, tdDiff);
+    body.appendChild(tr);
+
+    if (hours !== null) prevHours = hours;
+  });
+}
+
+/* ---------------------------------------------------------------------
+   Utilitaires
+   ------------------------------------------------------------------- */
+
+function formatSignedDuration(hoursDecimal) {
+  const sign = hoursDecimal < 0 ? '-' : '';
+  const abs = Math.abs(hoursDecimal);
+  // On tronque (pas d'arrondi) pour rester fidèle à la valeur du fichier Excel.
+  // Le Math.round intermédiaire en millisecondes corrige uniquement les
+  // imprécisions de calcul flottant (ex: 52.65 stocké comme 52.64999999...).
+  const totalMinutes = Math.floor(Math.round(abs * 60 * 60 * 1000) / 60000);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${sign}${h}:${String(m).padStart(2, '0')}`;
+}
+
+function setScreen(id) {
+  ['screen-login', 'screen-dashboard', 'screen-fatal'].forEach((s) => {
+    setHidden(s, s !== id);
+  });
+}
+
+function showFatal(message) {
+  el('fatal-message').textContent = message;
+  setScreen('screen-fatal');
+}
+
+/* Reprise de session dans l'onglet en cours */
+window.addEventListener('load', () => {
+  const saved = sessionStorage.getItem('solde-agent');
+  if (saved) {
+    const check = setInterval(() => {
+      if (state.workbookData) {
+        clearInterval(check);
+        if (state.workbookData && Object.values(state.workbookData).some((y) => y[saved])) {
+          showDashboard(saved);
+        }
+      }
+    }, 50);
+  }
+});
