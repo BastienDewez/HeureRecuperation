@@ -139,6 +139,14 @@ function numericOrNull(v) {
   return null;
 }
 
+// Retourne le dernier jour civil du mois donné (28-31), en tenant compte
+// des années bissextiles pour février.
+function lastDayOfMonth(monthName, year) {
+  const idx = MONTHS_FR.indexOf(monthName);
+  if (idx === -1) return '';
+  return new Date(Number(year), idx + 1, 0).getDate();
+}
+
 /* ---------------------------------------------------------------------
    Écran de connexion
    ------------------------------------------------------------------- */
@@ -247,7 +255,7 @@ function renderYear(agentName, year) {
   // --- Carte principale : dernier solde connu ---
   if (lastMonth) {
     const hours = months[lastMonth] * 24;
-    el('hero-label').textContent = `Solde au 30 ${lastMonth} ${year}`;
+    el('hero-label').textContent = `Solde au ${lastDayOfMonth(lastMonth, year)} ${lastMonth} ${year}`;
     el('hero-value').textContent = formatSignedDuration(hours);
     el('hero-value').className = 'hero-value' + (hours < 0 ? ' negative' : '');
     const idx = withData.length - 2 >= 0 ? withData[withData.length - 2] : null;
